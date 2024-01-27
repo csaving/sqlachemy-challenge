@@ -43,7 +43,7 @@ def welcome():
         f"/api/v1.0/stations<br/>"
         f"/api/v1.0/tobs<br/>"
         f"/api/v1.0/<start><br/>"
-        f"/api/v1.0/<start>/<end>"
+        f"/api/v1.0/<start>/<end><br/>"
     )
 
 
@@ -77,6 +77,67 @@ def precipitation():
         prcp_list.append(prcp_dict)
 
     return jsonify(prcp_list)
+
+
+@app.route("/api/v1.0/stations")
+def stations():
+    # Create our session (link) from Python to the DB
+    session = Session(engine)
+
+    """Return list of stations"""
+
+    # Query preciptitation data for last 12 months
+    results = session.query(s.station, s.name).all()
+
+    session.close()
+
+    # Create a dictionary from the row data and append to a list of stations
+    station_list = []
+    for station, name in results:
+        station_dict = {}
+        station_dict[station] = name
+        station_list.append(station_dict)
+
+    return jsonify(station_list)
+
+
+@app.route("/api/v1.0/tobs")
+def tobs():
+    # Create our session (link) from Python to the DB
+    session = Session(engine)
+
+    """Return temperature data for most active station for most recent 12 months"""
+    
+    # Find the most recent date in the data set.
+    recent_date_str = session.query(m.date).order_by(m.date.desc()).limit(1).scalar()
+    
+    # Calculate the date one year from the last date in data set.
+    recent_date = dt.date.fromisoformat(recent_date_str)
+    year_ago = recent_date - dt.timedelta(days=365)
+
+    # Find most active station id
+    most_active = session.query(m.station).\
+                    group_by(m.station).\
+                    order_by(func.count(m.station).desc()).\
+                    first()[0]
+    
+    # Using the most active station id
+    # Query the last 12 months of temperature observation data for this station
+    results = session.query(m.date, m.tobs).\
+                    filter(m.station == most_active).\
+                    filter(m.date > year_ago).\
+                    all()
+
+    session.close()
+
+    # Create a dictionary from the row data and append to a list of temperature data
+    tobs_list = []
+    for date, tobs in results:
+        tobs_dict = {}
+        tobs_dict[date] = tobs
+        tobs_list.append(tobs_dict)
+
+    return jsonify(tobs_list)
 
 
 if __name__ == '__main__':
