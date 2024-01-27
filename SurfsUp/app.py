@@ -42,8 +42,8 @@ def welcome():
         f"/api/v1.0/precipitation<br/>"
         f"/api/v1.0/stations<br/>"
         f"/api/v1.0/tobs<br/>"
-        f"/api/v1.0/<start><br/>"
-        f"/api/v1.0/<start>/<end><br/>"
+        f"/api/v1.0/&lt;start&gt;<br/>"
+        f"/api/v1.0/&lt;start&gt;/&lt;end&gt;<br/>"
     )
 
 
@@ -135,6 +135,57 @@ def tobs():
     for date, tobs in results:
         tobs_dict = {}
         tobs_dict[date] = tobs
+        tobs_list.append(tobs_dict)
+
+    return jsonify(tobs_list)
+
+
+@app.route("/api/v1.0/<start>")
+def start(start):
+    # Create our session (link) from Python to the DB
+    session = Session(engine)
+
+    """Return temperature stats from given start date"""
+
+    # Query the temperature stats filtered by start date
+    results = session.query(func.min(m.tobs).label("tmin"), func.max(m.tobs).label("tmax"), func.avg(m.tobs).label("tavg")).\
+                        filter(m.date >= start).\
+                        all()
+    
+    session.close()
+
+    # Create a dictionary from the row data and append to a list of temperature data
+    tobs_list = []
+    for tmin, tmax, tavg in results:
+        tobs_dict = {}
+        tobs_dict['tmin'] = tmin
+        tobs_dict['tmax'] = tmax
+        tobs_dict['tavg'] = tavg
+        tobs_list.append(tobs_dict)
+
+    return jsonify(tobs_list)
+
+
+@app.route("/api/v1.0/<start>/<end>")
+def startend(start, end):
+    # Create our session (link) from Python to the DB
+    session = Session(engine)
+
+    """Return temperature stats for data between start and end date inclusive"""
+
+    # Query the temperature stats filtered by start and end dates
+    results = session.query(func.min(m.tobs).label("tmin"), func.max(m.tobs).label("tmax"), func.avg(m.tobs).label("tavg")).\
+                        filter(m.date >= start, m.date <= end).\
+                        all()
+    session.close()
+
+    # Create a dictionary from the row data and append to a list of temperature data
+    tobs_list = []
+    for tmin, tmax, tavg in results:
+        tobs_dict = {}
+        tobs_dict['tmin'] = tmin
+        tobs_dict['tmax'] = tmax
+        tobs_dict['tavg'] = tavg
         tobs_list.append(tobs_dict)
 
     return jsonify(tobs_list)
